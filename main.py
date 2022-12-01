@@ -3,6 +3,8 @@ from tkinter import messagebox
 from random import choice, randint, shuffle
 import pyperclip
 import json
+from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
 
 
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
@@ -59,6 +61,7 @@ def save():
             website_entry.delete(0, END)
             password_entry.delete(0, END)
 
+
 # ---------------------------- FIND PASSWORD --------------------------#
 
 
@@ -76,6 +79,47 @@ def find_password():
             messagebox.showinfo(title=f"{website} info", message=f"Email: {email}\nPassword: {password}")
         else:
             messagebox.showinfo(title="info", message=f"No credentials were saved for this website: {website}")
+
+
+# ---------------------------- ENCRYPTING & DECRYPTING --------------------------------#
+
+def encrypt():
+    print("encrypting...")
+    # generate the key file named mykey.key
+    # key = Fernet.generate_key()
+    key = get_random_bytes(16)
+
+    with open('mykey.key', 'wb') as mykey:
+        mykey.write(key)
+    print("key file generated successuly.")
+
+    with open("data.json", "rb") as data_file:
+        data = data_file.read()
+    # data = b'secret data'
+
+    cipher = AES.new(key, AES.MODE_EAX)
+    ciphertext, tag = cipher.encrypt_and_digest(data)
+
+    file_out = open("encrypted_data.json", "wb")
+    [file_out.write(x) for x in (cipher.nonce, tag, ciphertext)]
+    file_out.close()
+    print("The file is encrypted successfuly.")
+
+
+def decrypt():
+    print("decrypting...")
+    file_in = open("encrypted_data.json", "rb")
+    nonce, tag, ciphertext = [file_in.read(x) for x in (16, 16, -1)]
+
+    with open("mykey.key", "rb") as mykey_file:
+        key = mykey_file.read()
+    # let's assume that the key is somehow available again
+    cipher = AES.new(key, AES.MODE_EAX, nonce)
+    data = cipher.decrypt_and_verify(ciphertext, tag)
+    # print(data)
+    with open("decrypted_data.json", "wb") as decrypted_file:
+        decrypted_file.write(data)
+    print("The file is decrypted successfuly.")
 
 # ---------------------------- UI SETUP ------------------------------- #
 
@@ -115,5 +159,12 @@ search_button = Button(text="Search", width=15, command=find_password)
 add_button = Button(text="Add", width=46, command=save)
 add_button.grid(row=4, column=1, columnspan=2)
 search_button.grid(row=1, column=2, sticky=W)
+
+add_button = Button(text="Encrypt with AES", width=46, command=encrypt)
+add_button.grid(row=5, column=1, columnspan=2)
+
+add_button = Button(text="Decrypt", width=46, command=decrypt)
+add_button.grid(row=6, column=1, columnspan=2)
+
 
 window.mainloop()
